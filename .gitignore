@@ -57,6 +57,9 @@ include/config
 include/linux/version.h
 include/generated
 
+# Generated boot files
+arch/arm/boot/*
+
 # stgit generated dirs
 patches-*
 
