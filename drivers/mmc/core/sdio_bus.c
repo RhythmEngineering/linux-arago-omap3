@@ -199,8 +199,6 @@ out:
 
 static int sdio_bus_pm_prepare(struct device *dev)
 {
-	struct sdio_func *func = dev_to_sdio_func(dev);
-
 	/*
 	 * Resume an SDIO device which was suspended at run time at this
 	 * point, in order to allow standard SDIO suspend/resume paths
@@ -222,8 +220,7 @@ static int sdio_bus_pm_prepare(struct device *dev)
 	 * since there is little point in failing system suspend if a
 	 * device can't be resumed.
 	 */
-	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_resume(dev);
+	pm_runtime_resume(dev);
 
 	return 0;
 }

@@ -290,6 +290,9 @@ static int mt9t111_configure(struct v4l2_subdev *subdev)
 	if (err)
 		goto out;
 
+	// Enable Clock pad
+	err = mt9t111_write_reg(client, 0x0016, 0x0400);
+
 	err = mt9t111_write_regs(client, def_regs1,
 			   sizeof(def_regs1) / sizeof(mt9t111_regs));
 	if (err)

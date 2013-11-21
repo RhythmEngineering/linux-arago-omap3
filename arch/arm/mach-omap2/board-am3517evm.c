@@ -59,6 +59,7 @@
 
 #define NAND_BLOCK_SIZE        SZ_128K
 
+#ifdef CONFIG_MTD_NAND_OMAP2
 static struct mtd_partition am3517evm_nand_partitions[] = {
 /* All the partition sizes are listed in terms of NAND block size */
 	{
@@ -89,6 +90,7 @@ static struct mtd_partition am3517evm_nand_partitions[] = {
 		.offset         = MTDPART_OFS_APPEND,
 	},
 };
+#endif
 
 static struct mdio_platform_data am3517_evm_mdio_pdata = {
 	.bus_freq	= AM35XX_EVM_MDIO_FREQUENCY,
@@ -756,32 +758,25 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 /* NOR flash information */
 static struct mtd_partition am3517_evm_norflash_partitions[] = {
-	/* primiary bootloader (X-loader) in first 4 sectors(32K) */
-	{
-		.name           = "X-Loader-NOR",
-		.offset         = 0,
-		.size           = 4 * SZ_32K,
-		.mask_flags     = MTD_WRITEABLE, /* force read-only */
-	},
-	/* secondary bootloader (U-Boot, etc) in first 5 sectors(128K) */
+	/* Bootloader (U-Boot) in first 512K */
 	{
 		.name           = "U-Boot-NOR",
-		.offset         = MTDPART_OFS_APPEND,
-		.size           = 5 * SZ_128K,
+		.offset         = 0,
+		.size           = 4 * SZ_128K,
 		.mask_flags     = MTD_WRITEABLE, /* force read-only */
 	},
-	/* bootloader params in the next 2 sectors */
+	/* bootloader params in the next sector */
 	{
 		.name           = "Boot Env-NOR",
 		.offset         = MTDPART_OFS_APPEND,
-		.size           = 2 * SZ_128K,
+		.size           = SZ_128K,
 		.mask_flags     = 0,
 	},
 	/* kernel */
 	{
 		.name           = "Kernel-NOR",
 		.offset         = MTDPART_OFS_APPEND,
-		.size           = 32 * SZ_128K,
+		.size           = 27 * SZ_128K,
 		.mask_flags     = 0
 	},
 	/* file system */
@@ -926,9 +921,11 @@ static void __init am3517_evm_init(void)
 	/* DSS */
 	am3517_evm_display_init();
 
+#ifdef CONFIG_MTD_NAND_OMAP2
 	/* NAND */
 	board_nand_init(am3517evm_nand_partitions,
 					ARRAY_SIZE(am3517evm_nand_partitions), 0, NAND_BUSWIDTH_16);
+#endif
 
 	/* RTC - S35390A */
 	am3517_evm_rtc_init();

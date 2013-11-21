@@ -616,7 +616,7 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 		}
 	}
 
-	if (!err && host->pm_flags & MMC_PM_KEEP_POWER) {
+	if (!err && mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		mmc_claim_host(host);
 		sdio_disable_wide(host->card);
 		mmc_release_host(host);
@@ -627,15 +627,27 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 
 static int mmc_sdio_resume(struct mmc_host *host)
 {
-	int i, err;
+	int i, err = 0;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
-	err = mmc_sdio_init_card(host, host->ocr, host->card,
-				 (host->pm_flags & MMC_PM_KEEP_POWER));
+
+ 	/* No need to reinitialize powered-resumed nonremovable cards */
+	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host))
+ 		err = mmc_sdio_init_card(host, host->ocr, host->card,
+					mmc_card_keep_power(host));
+	else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
+ 		/* We may have switched to 1-bit mode during suspend */
+		err = sdio_enable_4bit_bus(host->card);
+		if (err > 0) {
+			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+			err = 0;
+		}
+	}
+
 	if (!err && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
 	mmc_release_host(host);
@@ -670,7 +682,7 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 
 	mmc_claim_host(host);
 	ret = mmc_sdio_init_card(host, host->ocr, host->card,
-			(host->pm_flags & MMC_PM_KEEP_POWER));
+				mmc_card_keep_power(host));
 	if (!ret && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
 	mmc_release_host(host);
