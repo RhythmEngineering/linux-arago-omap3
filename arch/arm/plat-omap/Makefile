@@ -41,5 +41,6 @@ obj-$(CONFIG_OMAP_MBOX_FWK) += mailbox.o
 obj-$(CONFIG_MACH_OMAP3517EVM) += psp-version.o
 obj-$(CONFIG_MACH_OMAP3EVM) += psp-version.o
 obj-$(CONFIG_MACH_OMAP3_BEAGLE) += psp-version.o
+obj-$(CONFIG_MACH_RESMARC3517) += psp-version.o
 
 obj-$(CONFIG_OMAP_PM_NOOP) += omap-pm-noop.o
