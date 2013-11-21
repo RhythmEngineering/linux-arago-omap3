@@ -307,6 +307,13 @@ config BACKLIGHT_PCF50633
 	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
 	  enable its driver.
 
+config BACKLIGHT_OMAP_DMTIMER
+        tristate "OMAP timer pwm based backlight driver"
+        depends on BACKLIGHT_CLASS_DEVICE && ARCH_OMAP && GENERIC_GPIO
+        default n
+        help
+          If you want use OMAP pwm & gpio pin to control backlight, enable it.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT
