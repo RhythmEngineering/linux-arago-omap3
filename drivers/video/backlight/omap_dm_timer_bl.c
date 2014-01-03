@@ -24,10 +24,10 @@
 /* Flag to signal when the battery is low */
 #define TIMERBL_BATTLOW       BL_CORE_DRIVER1
 
-static uint dimming_freq = 233;
+static uint dimming_freq = 500;
 
 module_param_named(dimming_freq, dimming_freq, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(dimming_freq, "Dimming frequency in Hz [Default: 233]");
+MODULE_PARM_DESC(dimming_freq, "Dimming frequency in Hz [Default: 500]");
 
 struct omap_dmtimer_bl {
 	struct backlight_device			*bldev;
@@ -105,7 +105,6 @@ static int omap_dmtimer_bl_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct omap_dmtimer_bl *bl;
 	struct omap_dmtimer_bl_platform_data *pdata;
-	int r;
 	struct omap_dm_timer *gptimer;
 
 	pdata = (struct omap_dmtimer_bl_platform_data *)pdev->dev.platform_data;
@@ -121,18 +120,6 @@ static int omap_dmtimer_bl_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "platform_data contains invalid data\n");
 		return -EIO;
 	}
-
-// Acquire GPIO
-	/* tcw_debug: removed
-	r = gpio_request(pdata->gpio_onoff, "bl_onoff_pin");
-	if (r) {
-		dev_err(&pdev->dev, "failed to get onoff GPIO\n");
-		return -EIO;
-	}
-	*/
-
-// Initialize GPIO
-	gpio_direction_output(pdata->gpio_onoff, pdata->onoff_active_low ? 1 : 0);
 
 // Acquire timer
 	gptimer = omap_dm_timer_request_specific(pdata->timer_id);
@@ -179,10 +166,10 @@ static int omap_dmtimer_bl_probe(struct platform_device *pdev)
 
 	bd->props.max_brightness = 99;
 	bd->props.power = FB_BLANK_UNBLANK;
-	bd->props.brightness = 30;
+	bd->props.brightness = 99;
 	backlight_update_status(bd);
 
-	printk("OMAP timer based backlight driver initialized (tmr #%u, gpio #%u, clk=%u KHz).\n", pdata->timer_id, pdata->gpio_onoff, (bl->clock_rate+500)/1000);
+	printk("OMAP timer based backlight driver initialized (tmr #%u, gpio #%u, freq = %uHz)\n", pdata->timer_id, pdata->gpio_onoff, dimming_freq);
 	return 0;
 }
 

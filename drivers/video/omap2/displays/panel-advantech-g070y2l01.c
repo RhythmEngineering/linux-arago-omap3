@@ -6,6 +6,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/fb.h>
+#include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/i2c/twl.h>
 #include <plat/display.h>
@@ -22,9 +23,9 @@ struct g070y2_data {
 static int old_brightness;
 
 static struct omap_video_timings g070y2_timings = {
-	.x_res = 800,
-	.y_res = 480,
-	.pixel_clock	= 29500,
+	.x_res          = 800,
+	.y_res          = 480,
+	.pixel_clock    = 29500,
 	.hfp		= 104,
         .hsw            = 8,
 	.hbp		= 32,
@@ -103,15 +104,15 @@ static int g070y2_panel_probe(struct omap_dss_device *dssdev)
 
        bl = backlight_device_register("g070y2-bl", &dssdev->dev, dssdev,
                      &g070y2_bl_ops, &props);
-
+       
 
        if (IS_ERR(bl)) {
                dev_err(&dssdev->dev, "failed to register backlight\n");
                return PTR_ERR(bl);
        }
 
-       bl->props.max_brightness = 57; /* maximum brightness */
-       bl->props.brightness = 57; /* initial brightness at boot-up */
+       bl->props.max_brightness = 99; /* maximum brightness */
+       bl->props.brightness = 99; /* initial brightness at boot-up */
        backlight_update_status(bl);
 
        return 0;
@@ -181,8 +182,6 @@ static int g070y2_panel_check_timings(struct omap_dss_device *dssdev,
 {
 	return dpi_check_timings(dssdev, timings);
 }
-
-
 
 static struct omap_dss_driver g070y2_driver = {
 	.probe		= g070y2_panel_probe,

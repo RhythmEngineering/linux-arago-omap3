@@ -62,12 +62,10 @@
 
 #define NAND_BLOCK_SIZE        SZ_128K
 
-#define GPIO_BACKLIGHT_EN	35
+#define GPIO_LCD_BIT_DEPTH      98
+#define GPIO_LCD_VDD_EN         35
+#define GPIO_LCD_BKLT_EN	34
 #define BACKLIGHT_TIMER_ID	9
-
-#define LCD_PANEL_PWR          176
-#define LCD_PANEL_BKLIGHT_PWR  182
-#define LCD_PANEL_PWM          181
 
 static struct mtd_partition am3517evm_nand_partitions[] = {
 /* All the partition sizes are listed in terms of NAND block size */
@@ -220,16 +218,12 @@ static void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 	return ;
 }
 
-/* EEPROM platform data */
-static struct at24_platform_data m24c08 = {
-        .byte_len       = SZ_8K / 8,
-        .page_size      = 16,
-};
-
 /*
- * I2C-1 (Wired to I2C_GP and I2C_PM SMARC Interfaces on LEC-3517)
+ * I2C Interface
  */
-static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
+
+/* I2C-1 (Wired to I2C_GP and I2C_PM SMARC Interfaces on LEC-3517) */
+static struct i2c_board_info __initdata resmarc3517_i2c1_boardinfo[] = {
         {
                 I2C_BOARD_INFO("tps6507x", 0x48), /* Power Management IC (On-Module)*/
         },
@@ -238,97 +232,108 @@ static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
         },
 };
 
-/*
- * I2C-2 (Wired to I2C_LCD SMARC Interface on LEC-3517)
- */
-static struct i2c_board_info __initdata am3517evm_i2c2_boardinfo[] = {
+/* I2C-2 (Wired to I2C_LCD SMARC Interface on LEC-3517) */
+static struct i2c_board_info __initdata resmarc3517_i2c2_boardinfo[] = {
 };
 
-/*
- * I2C-3 (Wired to I2C_CAM SMARC Interface on LEC-3517)
- */
-static struct i2c_board_info __initdata am3517evm_i2c3_boardinfo[] = {
+/* I2C-3 (Wired to I2C_CAM SMARC Interface on LEC-3517) */
+static struct i2c_board_info __initdata resmarc3517_i2c3_boardinfo[] = {
 };
 
-static int __init am3517_evm_i2c_init(void)
+static int __init resmarc3517_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 400, am3517evm_i2c1_boardinfo,
-			ARRAY_SIZE(am3517evm_i2c1_boardinfo));
-	omap_register_i2c_bus(2, 400, am3517evm_i2c2_boardinfo,
-			ARRAY_SIZE(am3517evm_i2c2_boardinfo));
-	omap_register_i2c_bus(3, 400, am3517evm_i2c3_boardinfo,
-                	ARRAY_SIZE(am3517evm_i2c3_boardinfo));
+	omap_register_i2c_bus(1, 400, resmarc3517_i2c1_boardinfo,
+			ARRAY_SIZE(resmarc3517_i2c1_boardinfo));
+	omap_register_i2c_bus(2, 400, resmarc3517_i2c2_boardinfo,
+			ARRAY_SIZE(resmarc3517_i2c2_boardinfo));
+	omap_register_i2c_bus(3, 400, resmarc3517_i2c3_boardinfo,
+                	ARRAY_SIZE(resmarc3517_i2c3_boardinfo));
 	return 0;
 }
 
+/*
+ * LCD Interface
+ */
+
+/* OMAP dual-mode timer based PWM backlight */
+static struct omap_dmtimer_bl_platform_data omap_dm_timer_bl_pdata = {
+        .gpio_onoff = GPIO_LCD_BKLT_EN,
+        .onoff_active_low = 0,
+        .timer_id = BACKLIGHT_TIMER_ID,
+        .pwm_active_low = 0,
+};
+
+static struct platform_device omap_dm_timer_bl_dev = {
+        .name   = "omap-dmtimer-bl",
+        .id     = -1,
+        .dev    = {
+                .platform_data  = &omap_dm_timer_bl_pdata,
+        },
+};
+
+/* Rhythm LCD Panel */
 static int lcd_enabled;
 
 static int rhythm_panel_enable(struct omap_dss_device *dssdev)
 {
-	gpio_set_value(LCD_PANEL_PWR, 1);
-	lcd_enabled = 1;
+        gpio_request_one(GPIO_LCD_BIT_DEPTH, GPIOF_OUT_INIT_HIGH, "lcd_bit_depth");
+        gpio_direction_output(GPIO_LCD_BIT_DEPTH, 1);
 
-	return 0;
+        gpio_request_one(GPIO_LCD_VDD_EN, GPIOF_OUT_INIT_LOW, "lcd_vdd_en");
+        gpio_direction_output(GPIO_LCD_VDD_EN, 1);
+	
+        gpio_request_one(GPIO_LCD_BKLT_EN, GPIOF_OUT_INIT_LOW, "lcd_bklt_en");
+        gpio_direction_output(GPIO_LCD_BKLT_EN, 1);
+
+        gpio_set_value(GPIO_LCD_VDD_EN, 1);
+        gpio_set_value(GPIO_LCD_BKLT_EN, 1);
+	lcd_enabled = 1;
+        return 0;
 }
 
 static void rhythm_panel_disable(struct omap_dss_device *dssdev)
 {
-	gpio_set_value(LCD_PANEL_PWR, 0);
+	gpio_set_value(GPIO_LCD_VDD_EN, 0);
 	lcd_enabled = 0;
-}
-
-static int am3517_evm_set_bl_intensity(struct omap_dss_device *dssdev, int level)
-{
- 
-	unsigned char c;
-	
-	/* Temporarily disabled */
-	/*
-        if (level > dssdev->max_backlight_level)
-                level = dssdev->max_backlight_level;
-
-        c = ((125 * (100 - level)) / 100);
-        c += get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2 ? 1 : 2;
-
-	#define TWL_LED_PWMON   0x0
-        twl_i2c_write_u8(TWL4030_MODULE_PWMA, c, TWL_LED_PWMON);
-	*/
-
-        return 0;
 }
 
 static struct omap_dss_device rhythm_lcd_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
+        .phy.dpi.data_lines     = 24,
+        .max_backlight_level    = 99,
 	.name			= "lcd",
 	.driver_name		= "g070y2_panel",
-	.phy.dpi.data_lines 	= 24,
 	.platform_enable	= rhythm_panel_enable,
 	.platform_disable	= rhythm_panel_disable,
-	.set_backlight          = am3517_evm_set_bl_intensity, /*tcw_debug: TODO*/
 };
 
-static struct omap_dss_device *am3517_evm_dss_devices[] = {
+static struct omap_dss_device *resmarc3517_dss_devices[] = {
        &rhythm_lcd_device,
 };
 
-static struct omap_dss_board_info am3517_evm_dss_data = {
-	.num_devices	= ARRAY_SIZE(am3517_evm_dss_devices),
-	.devices	= am3517_evm_dss_devices,
+static struct omap_dss_board_info resmarc3517_dss_data = {
+	.num_devices	= ARRAY_SIZE(resmarc3517_dss_devices),
+	.devices	= resmarc3517_dss_devices,
         .default_device = &rhythm_lcd_device,
 };
 
-static struct platform_device am3517_evm_dss_device = {
+static struct platform_device resmarc3517_dss_device = {
 	.name		= "omapdss",
 	.id		= -1,
 	.dev		= {
-		.platform_data	= &am3517_evm_dss_data,
+		.platform_data	= &resmarc3517_dss_data,
 	},
+};
+
+static struct platform_device *resmarc3517_devices[] __initdata = {
+	&resmarc3517_dss_device,
+	&omap_dm_timer_bl_dev,
 };
 
 /*
  * Board initialization
  */
-static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
+static struct omap_board_config_kernel resmarc3517_config[] __initdata = {
 };
 
 /* SPI */
@@ -350,30 +355,10 @@ static struct spi_board_info tcw_spi_board_info[] = {
 
 };
 
-static struct omap_dmtimer_bl_platform_data omap_dm_timer_bl_pdata = {
-        .gpio_onoff = GPIO_BACKLIGHT_EN,
-        .onoff_active_low = 0,
-        .timer_id = BACKLIGHT_TIMER_ID,
-        .pwm_active_low = 0,
-};
-
-static struct platform_device omap_dm_timer_bl_dev = {
-        .name   = "omap-dmtimer-bl",
-        .id     = -1,
-        .dev    = {
-                .platform_data  = &omap_dm_timer_bl_pdata,
-        },
-};
-
-static struct platform_device *am3517_evm_devices[] __initdata = {
-	&am3517_evm_dss_device,
-	&omap_dm_timer_bl_dev,
-};
-
-static void __init am3517_evm_init_irq(void)
+static void __init resmarc3517_init_irq(void)
 {
-	omap_board_config = am3517_evm_config;
-	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
+	omap_board_config = resmarc3517_config;
+	omap_board_config_size = ARRAY_SIZE(resmarc3517_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
@@ -407,12 +392,7 @@ static __init void am3517_evm_musb_init(void)
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
-		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-#else
 	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
-#endif
 	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
 
 	.phy_reset  = true,
@@ -428,6 +408,12 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP3_MUX(MCBSP_CLKS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
 	OMAP3_MUX(GPMC_NCS4, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLDOWN),
 	OMAP3_MUX(SYS_NRESWARM, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+        OMAP3_MUX(CAM_FLD, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4),
+        OMAP3_MUX(ETK_D13, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4), // GPIO 27 (SMARC PIN = GPIO10)
+        OMAP3_MUX(ETK_D14, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4), // GPIO 28 (SMARC PIN = GPIO11)
+        OMAP3_MUX(GPMC_A1, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4), // GPIO 34 (SMARC PIN = LCD_BKLT_EN)
+        OMAP3_MUX(GPMC_A2, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4), // GPIO 35 (SMARC PIN = LCD_VDD_EN)
+        OMAP3_MUX(CCDC_WEN, OMAP_PIN_OUTPUT | OMAP_MUX_MODE4), // GPIO 98 (SMARC PIN = GPIO0/CAM0_PWR#)
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -493,15 +479,8 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_cd	= -1,
 		.gpio_wp	= -1,
 	},
-        {
-                .mmc            = 2,
-                .caps           = MMC_CAP_4_BIT_DATA, //8_BIT_DATA?
-                .gpio_cd        = -1,
-                .gpio_wp        = -1,
-        },
 	{}      /* Terminator */
 };
-
 
 static struct ehci_hcd_omap_platform_data ehci_bdata __initdata = {
         .port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
@@ -530,14 +509,16 @@ static int sm3517_init_usb(void)
         return 0;
 }
 
-static void __init am3517_evm_init(void)
+static void __init resmarc3517_init(void)
 {
-	//omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+        #ifdef CONFIG_OMAP_MUX
+	omap3_mux_init(board_mux, OMAP_PACKAGE_ZCN);
+        #endif
 
-	am3517evm_i2c1_boardinfo[1].irq = gpio_to_irq(28);
-	am3517_evm_i2c_init();
-	platform_add_devices(am3517_evm_devices,
-				ARRAY_SIZE(am3517_evm_devices));
+	resmarc3517_i2c1_boardinfo[1].irq = gpio_to_irq(28);
+	resmarc3517_i2c_init();
+	platform_add_devices(resmarc3517_devices,
+				ARRAY_SIZE(resmarc3517_devices));
 	
 	omap_serial_init();
 
@@ -571,8 +552,8 @@ MACHINE_START(RESMARC3517, "Rhythm Carrier + LEC-3517")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= am3517_evm_init_irq,
-	.init_machine	= am3517_evm_init,
+	.init_irq	= resmarc3517_init_irq,
+	.init_machine	= resmarc3517_init,
 	.timer		= &omap_timer,
 MACHINE_END
 

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/arm 2.6.37 Kernel Configuration
-# Thu Nov 21 17:20:32 2013
+# Mon Dec  9 14:34:46 2013
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -282,7 +282,7 @@ CONFIG_ARCH_OMAP3=y
 # CONFIG_ARCH_OMAP4 is not set
 # CONFIG_ARCH_TI81XX is not set
 CONFIG_ARCH_OMAP3430=y
-CONFIG_OMAP_PACKAGE_CBB=y
+CONFIG_OMAP_PACKAGE_ZCN=y
 
 #
 # OMAP Board Type
